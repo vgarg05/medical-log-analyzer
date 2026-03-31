@@ -58,7 +58,7 @@ ALLOWED_EXTS   = {"txt"}
 app = Flask(__name__)
 app.config.update(
     SECRET_KEY                  = os.environ.get("SECRET_KEY", "med-log-secret-2024"),
-    SQLALCHEMY_DATABASE_URI     = f"sqlite:///{os.path.join(BASE_DIR, 'logs.db')}",
+    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", f"sqlite:///{os.path.join(BASE_DIR, 'logs.db')}"),
     SQLALCHEMY_TRACK_MODIFICATIONS = False,
     UPLOAD_FOLDER               = UPLOAD_FOLDER,
     MAX_CONTENT_LENGTH          = 16 * 1024 * 1024,   # 16 MB
