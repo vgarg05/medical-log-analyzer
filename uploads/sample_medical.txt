@@ -1,0 +1,15 @@
+INFO  [2024-01-15 08:00:01] DeviceManager     - System startup complete. All modules initialized.
+INFO  [2024-01-15 08:00:05] HeartRateMonitor  - BPM reading: 72 bpm — within normal range
+INFO  [2024-01-15 08:00:10] OxygenSensor      - SpO2 level: 98% — stable
+WARNING [2024-01-15 08:00:15] BloodPressure   - Systolic spike: 145 mmHg — monitoring elevated reading
+INFO  [2024-01-15 08:00:20] TempSensor        - Body temperature: 36.8°C — nominal
+ERROR [2024-01-15 08:00:25] HeartRateMonitor  - BPM reading INVALID (0) — sensor fault detected
+INFO  [2024-01-15 08:00:30] OxygenSensor      - SpO2 level: 97% — stable
+WARNING [2024-01-15 08:00:35] BatteryModule   - Battery at 18% — charge recommended immediately
+INFO  [2024-01-15 08:00:40] DeviceManager     - Firmware heartbeat OK — uptime 40 min
+ERROR [2024-01-15 08:00:45] OxygenSensor      - SpO2 critically low: 82% — immediate clinical attention required
+INFO  [2024-01-15 08:00:50] HeartRateMonitor  - BPM reading: 68 bpm — recovered
+WARNING [2024-01-15 08:00:55] TempSensor      - Temperature elevated: 38.2°C — above threshold
+ERROR [2024-01-15 08:01:00] DeviceManager     - Connection lost after 5 retries — device offline
+INFO  [2024-01-15 08:01:05] BloodPressure     - Systolic 118 mmHg — no anomaly detected
+INFO  [2024-01-15 08:01:10] OxygenSensor      - SpO2 level: 96% — recovering

@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MedLog — Medical Device Log Analyzer</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- Socket.IO client -->
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+  <style>
+    /* ── Design tokens ──────────────────────────────────────── */
+    :root {
+      --bg:       #0a0d14;
+      --surface:  #0f1420;
+      --surface2: #161c2d;
+      --border:   rgba(255,255,255,0.07);
+      --text:     #e2e8f0;
+      --muted:    #64748b;
+      --accent:   #38bdf8;
+
+      --info:     #38bdf8;  --info-bg:  rgba(56,189,248,0.08);
+      --warn:     #fbbf24;  --warn-bg:  rgba(251,191,36,0.08);
+      --error:    #f87171;  --error-bg: rgba(248,113,113,0.08);
+      --ok:       #34d399;  --ok-bg:    rgba(52,211,153,0.08);
+
+      --radius: 12px;
+      --font-ui:   'Inter', sans-serif;
+      --font-head: 'Syne', sans-serif;
+      --font-mono: 'DM Mono', monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 14px;
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Ambient glow */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background:
+        radial-gradient(ellipse 60% 40% at 20% 10%, rgba(56,189,248,0.06) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 35% at 80% 80%, rgba(168,85,247,0.05) 0%, transparent 70%);
+    }
+
+    .app { position: relative; z-index: 1; display: flex; flex-direction: column; min-height: 100vh; }
+
+    /* ── Nav ────────────────────────────────────────────────── */
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 32px; height: 60px;
+      background: rgba(15,20,32,0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 100;
+    }
+
+    .nav-brand {
+      display: flex; align-items: center; gap: 10px;
+      font-family: var(--font-head); font-weight: 800; font-size: 1.1rem;
+      letter-spacing: -0.02em;
+    }
+
+    .nav-cross {
+      width: 26px; height: 26px; background: var(--accent);
+      border-radius: 6px; display: grid; place-items: center;
+      font-size: 14px; color: #0a0d14; font-weight: 900;
+    }
+
+    .nav-badge {
+      font-family: var(--font-mono); font-size: 0.65rem;
+      padding: 2px 8px; border-radius: 99px;
+      background: var(--info-bg); color: var(--info);
+      border: 1px solid rgba(56,189,248,0.2);
+      text-transform: uppercase; letter-spacing: 0.1em;
+    }
+
+    .nav-right { display: flex; align-items: center; gap: 16px; }
+
+    .nav-status {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 0.78rem; color: var(--muted);
+    }
+
+    .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--ok); box-shadow: 0 0 8px var(--ok);
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* ── Main ───────────────────────────────────────────────── */
+    main { padding: 32px; display: flex; flex-direction: column; gap: 28px; flex: 1; }
+
+    /* ── Page header ────────────────────────────────────────── */
+    .page-header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+    .page-title  { font-family: var(--font-head); font-size: 1.9rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; }
+    .page-title span { color: var(--accent); }
+    .page-sub { color: var(--muted); font-size: 0.85rem; margin-top: 4px; }
+
+    /* ── Alert banner ───────────────────────────────────────── */
+    #alert-banner {
+      border-radius: var(--radius); padding: 14px 20px;
+      display: flex; align-items: center; gap: 14px;
+      font-weight: 500; font-size: 0.9rem;
+      border: 1px solid transparent;
+      transition: all 0.4s ease;
+    }
+    #alert-banner.normal   { background: var(--ok-bg);    border-color: rgba(52,211,153,0.25);  color: var(--ok);    }
+    #alert-banner.critical { background: var(--error-bg); border-color: rgba(248,113,113,0.25); color: var(--error); animation: flash 1s ease-in-out 3; }
+    #alert-banner.hidden   { display: none; }
+    .alert-label { font-family: var(--font-head); font-size: 1rem; font-weight: 700; }
+
+    @keyframes flash { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+    /* ── Stats grid ─────────────────────────────────────────── */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px 22px;
+      display: flex; flex-direction: column; gap: 8px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+
+    .stat-label {
+      font-size: 0.72rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted);
+    }
+    .stat-value { font-family: var(--font-head); font-size: 2.4rem; font-weight: 800; line-height: 1; }
+    .stat-card.info    .stat-value { color: var(--info);  }
+    .stat-card.warning .stat-value { color: var(--warn);  }
+    .stat-card.error   .stat-value { color: var(--error); }
+    .stat-card.total   .stat-value { color: var(--text);  }
+    .stat-sub { font-size: 0.73rem; color: var(--muted); }
+
+    /* ── Two-column ─────────────────────────────────────────── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 860px) { .two-col { grid-template-columns: 1fr; } }
+
+    /* ── Card ───────────────────────────────────────────────── */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .card-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+    .card-title  { font-family: var(--font-head); font-weight: 700; font-size: 0.95rem; }
+    .card-body   { padding: 20px; }
+
+    /* ── Upload zone ────────────────────────────────────────── */
+    #upload-zone {
+      border: 2px dashed rgba(56,189,248,0.25); border-radius: var(--radius);
+      padding: 36px 20px; text-align: center; cursor: pointer;
+      transition: all 0.25s; position: relative;
+    }
+    #upload-zone:hover, #upload-zone.dragging { border-color: var(--accent); background: var(--info-bg); }
+    #upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+    .upload-icon { font-size: 2.4rem; margin-bottom: 10px; }
+    .upload-text { color: var(--muted); font-size: 0.85rem; }
+    .upload-text strong { color: var(--accent); }
+
+    #upload-result {
+      margin-top: 14px; border-radius: 8px; padding: 12px 16px;
+      font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.7; display: none;
+    }
+    #upload-result.success { background: var(--ok-bg);    color: var(--ok);    }
+    #upload-result.error   { background: var(--error-bg); color: var(--error); }
+
+    /* ── Buttons ────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 9px 18px; border-radius: 8px;
+      font-size: 0.83rem; font-weight: 600; cursor: pointer;
+      border: none; transition: all 0.2s;
+    }
+    .btn-primary { background: var(--accent); color: #0a0d14; }
+    .btn-primary:hover { filter: brightness(1.12); transform: translateY(-1px); }
+    .btn-danger  { background: var(--error-bg); color: var(--error); border: 1px solid rgba(248,113,113,0.25); }
+    .btn-danger:hover  { background: rgba(248,113,113,0.18); }
+    .btn-success { background: var(--ok-bg); color: var(--ok); border: 1px solid rgba(52,211,153,0.25); }
+    .btn-success:hover { background: rgba(52,211,153,0.18); }
+
+    /* ── Chart ──────────────────────────────────────────────── */
+    .chart-wrap { height: 220px; position: relative; }
+
+    /* ── Stream controls ────────────────────────────────────── */
+    .stream-controls { display: flex; align-items: center; gap: 10px; }
+
+    .stream-badge {
+      font-family: var(--font-mono); font-size: 0.68rem;
+      padding: 3px 9px; border-radius: 99px;
+      letter-spacing: 0.08em; text-transform: uppercase;
+    }
+    .stream-badge.live    { background: var(--ok-bg);    color: var(--ok);    border: 1px solid rgba(52,211,153,0.25); }
+    .stream-badge.offline { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+
+    /* ── Terminal ───────────────────────────────────────────── */
+    #terminal {
+      background: #080b12; border-radius: 0 0 var(--radius) var(--radius);
+      height: 340px; overflow-y: auto;
+      padding: 14px 18px;
+      font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.8;
+      scroll-behavior: smooth;
+    }
+    #terminal::-webkit-scrollbar { width: 4px; }
+    #terminal::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
+
+    .log-line { display: flex; gap: 10px; align-items: baseline; animation: fadein 0.3s ease; }
+    @keyframes fadein { from{opacity:0;transform:translateY(4px)} to{opacity:1} }
+
+    .log-ts  { color: #3d4f6b; flex-shrink: 0; font-size: 0.73rem; }
+    .log-lvl { flex-shrink: 0; font-weight: 500; min-width: 64px; text-align: right; }
+    .log-msg { color: #8da0b8; word-break: break-all; }
+
+    .log-lvl.INFO    { color: var(--info);  }
+    .log-lvl.WARNING { color: var(--warn);  }
+    .log-lvl.ERROR   { color: var(--error); }
+    .log-msg.ERROR   { color: #e07070;      }
+
+    /* ── Spinner ────────────────────────────────────────────── */
+    .spinner {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.15);
+      border-top-color: var(--accent);
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to{transform:rotate(360deg)} }
+
+    /* ── Error list ─────────────────────────────────────────── */
+    #error-list { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+    #error-list::-webkit-scrollbar { width: 3px; }
+    #error-list::-webkit-scrollbar-thumb { background: rgba(248,113,113,0.3); border-radius: 99px; }
+
+    .err-item {
+      background: var(--error-bg); border: 1px solid rgba(248,113,113,0.15);
+      border-left: 3px solid var(--error); border-radius: 6px;
+      padding: 8px 12px; font-family: var(--font-mono);
+      font-size: 0.74rem; color: #e07070; line-height: 1.5;
+    }
+
+    .no-data { color: var(--muted); font-size: 0.82rem; text-align: center; padding: 24px 0; }
+
+    /* ── Footer ─────────────────────────────────────────────── */
+    footer {
+      text-align: center; padding: 20px;
+      color: var(--muted); font-size: 0.73rem;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Navigation ──────────────────────────────────────────── -->
+  <nav>
+    <div class="nav-brand">
+      <div class="nav-cross">✚</div>
+      MedLog
+      <span class="nav-badge">Analyzer v1.1</span>
+    </div>
+    <div class="nav-right">
+      <div class="nav-status">
+        <div class="dot" id="ws-dot"></div>
+        <span id="ws-label">Connecting…</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Main ────────────────────────────────────────────────── -->
+  <main>
+
+    <!-- Page header -->
+    <div class="page-header">
+      <div>
+        <div class="page-title">Medical Device <span>Log Monitor</span></div>
+        <div class="page-sub">Upload a log file or watch the real-time device stream below.</div>
+      </div>
+      <button class="btn btn-danger" onclick="clearLogs()">🗑 Clear All Logs</button>
+    </div>
+
+    <!-- Alert banner -->
+    <div id="alert-banner" class="hidden">
+      <span id="alert-icon" style="font-size:1.3rem">✅</span>
+      <div>
+        <div class="alert-label" id="alert-label">NORMAL</div>
+        <div id="alert-sub" style="font-size:0.78rem;opacity:0.75"></div>
+      </div>
+    </div>
+
+    <!-- Stats cards -->
+    <div class="stats-grid">
+      <div class="stat-card total">
+        <div class="stat-label">Total Logs</div>
+        <div class="stat-value" id="stat-total">0</div>
+        <div class="stat-sub">all entries</div>
+      </div>
+      <div class="stat-card info">
+        <div class="stat-label">Info</div>
+        <div class="stat-value" id="stat-info">0</div>
+        <div class="stat-sub">informational</div>
+      </div>
+      <div class="stat-card warning">
+        <div class="stat-label">Warnings</div>
+        <div class="stat-value" id="stat-warn">0</div>
+        <div class="stat-sub">needs attention</div>
+      </div>
+      <div class="stat-card error">
+        <div class="stat-label">Errors</div>
+        <div class="stat-value" id="stat-error">0</div>
+        <div class="stat-sub">critical issues</div>
+      </div>
+    </div>
+
+    <!-- Two col: Upload + Chart -->
+    <div class="two-col">
+
+      <!-- Upload card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📂 Upload Log File</div>
+        </div>
+        <div class="card-body">
+          <div id="upload-zone">
+            <input type="file" id="file-input" accept=".txt" onchange="handleUpload(event)" />
+            <div class="upload-icon">📋</div>
+            <div class="upload-text">
+              <strong>Click to browse</strong> or drag &amp; drop<br>
+              Accepts <code>.txt</code> log files · Max 16 MB
+            </div>
+          </div>
+          <div id="upload-result"></div>
+        </div>
+      </div>
+
+      <!-- Chart card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📊 Log Distribution</div>
+        </div>
+        <div class="card-body">
+          <div class="chart-wrap">
+            <canvas id="log-chart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Two col: Errors + Stream -->
+    <div class="two-col">
+
+      <!-- Error list -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🚨 Detected Errors</div>
+          <span id="error-count-badge" style="font-family:var(--font-mono);font-size:0.72rem;color:var(--error)">0 errors</span>
+        </div>
+        <div class="card-body">
+          <div id="error-list">
+            <div class="no-data">No errors detected yet.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live stream -->
+      <div class="card" style="display:flex;flex-direction:column;">
+        <div class="card-header">
+          <div class="card-title">🖥 Live Log Stream</div>
+          <div class="stream-controls">
+            <span class="stream-badge offline" id="stream-badge">● OFFLINE</span>
+            <button class="btn btn-success" id="btn-stream" onclick="toggleStream()">▶ Start</button>
+          </div>
+        </div>
+        <div id="terminal">
+          <div class="log-line">
+            <span class="log-ts">--:--:--</span>
+            <span class="log-lvl INFO">INFO</span>
+            <span class="log-msg">Waiting for stream… click ▶ Start to begin.</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <footer>
+    MedLog Analyzer — Medical Device Log Monitoring System &nbsp;·&nbsp;
+    Built with Flask · SocketIO · SQLAlchemy · Chart.js
+  </footer>
+</div>
+
+<!-- ── JavaScript ──────────────────────────────────────────────────────────── -->
+<script>
+/* ── App state ─────────────────────────────────────────────────────────────── */
+const state = {
+  streaming: false,
+  counts: { INFO: 0, WARNING: 0, ERROR: 0 },
+  errors: [],
+};
+
+/* ── Chart.js ──────────────────────────────────────────────────────────────── */
+const chart = new Chart(
+  document.getElementById('log-chart').getContext('2d'),
+  {
+    type: 'bar',
+    data: {
+      labels: ['INFO', 'WARNING', 'ERROR'],
+      datasets: [{
+        label: 'Log Count',
+        data: [0, 0, 0],
+        backgroundColor: [
+          'rgba(56,189,248,0.2)',
+          'rgba(251,191,36,0.2)',
+          'rgba(248,113,113,0.2)',
+        ],
+        borderColor: ['#38bdf8', '#fbbf24', '#f87171'],
+        borderWidth: 2,
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#64748b', font: { family: 'DM Mono' } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: { beginAtZero: true, ticks: { color: '#64748b', font: { family: 'DM Mono' }, precision: 0 }, grid: { color: 'rgba(255,255,255,0.04)' } }
+      }
+    }
+  }
+);
+
+/* ── UI refresh ────────────────────────────────────────────────────────────── */
+function refreshUI() {
+  const total = state.counts.INFO + state.counts.WARNING + state.counts.ERROR;
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-info').textContent  = state.counts.INFO;
+  document.getElementById('stat-warn').textContent  = state.counts.WARNING;
+  document.getElementById('stat-error').textContent = state.counts.ERROR;
+
+  // Update chart
+  chart.data.datasets[0].data = [state.counts.INFO, state.counts.WARNING, state.counts.ERROR];
+  chart.update('active');
+
+  // Update alert banner
+  const ok     = state.counts.ERROR <= 2;
+  const banner = document.getElementById('alert-banner');
+  banner.className = ok ? 'normal' : 'critical';
+  document.getElementById('alert-icon').textContent  = ok ? '✅' : '🚨';
+  document.getElementById('alert-label').textContent = ok ? 'NORMAL — System Healthy' : 'CRITICAL — Immediate Action Required';
+  document.getElementById('alert-sub').textContent   = ok
+    ? `${state.counts.ERROR} error(s) — within acceptable threshold.`
+    : `${state.counts.ERROR} error(s) detected — exceeds critical threshold of 2.`;
+}
+
+/* ── Load stats from server on page load ───────────────────────────────────── */
+async function loadStats() {
+  try {
+    const r = await fetch('/api/stats');
+    const d = await r.json();
+    state.counts = d.counts;
+    refreshUI();
+  } catch (e) { console.error('Stats load failed', e); }
+}
+
+/* ── File upload ───────────────────────────────────────────────────────────── */
+async function handleUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const result = document.getElementById('upload-result');
+  result.style.display = 'block';
+  result.className = '';
+  result.innerHTML = '<span class="spinner"></span>  Analysing…';
+
+  const form = new FormData();
+  form.append('logfile', file);
+
+  try {
+    const r = await fetch('/api/upload', { method: 'POST', body: form });
+    const d = await r.json();
+
+    if (!r.ok) {
+      result.className   = 'error';
+      result.textContent = '⚠ ' + (d.error || 'Upload failed');
+      return;
+    }
+
+    // Merge counts into local state
+    state.counts.INFO    += (d.counts.INFO    || 0);
+    state.counts.WARNING += (d.counts.WARNING || 0);
+    state.counts.ERROR   += (d.counts.ERROR   || 0);
+
+    // Show errors in error panel
+    (d.error_messages || []).forEach(addError);
+    refreshUI();
+
+    result.className = 'success';
+    result.innerHTML =
+      `✅ <strong>${d.filename}</strong> — ${d.total_lines} lines processed<br>` +
+      `INFO: ${d.counts.INFO} &nbsp;·&nbsp; WARN: ${d.counts.WARNING} &nbsp;·&nbsp; ERROR: ${d.counts.ERROR}<br>` +
+      `Alert Status: <strong>${d.alert_status}</strong>`;
+
+  } catch (e) {
+    result.className   = 'error';
+    result.textContent = '⚠ Network error: ' + e.message;
+  }
+}
+
+/* ── Drag & drop ───────────────────────────────────────────────────────────── */
+const zone = document.getElementById('upload-zone');
+zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('dragging'); });
+zone.addEventListener('dragleave', ()  => zone.classList.remove('dragging'));
+zone.addEventListener('drop', e => {
+  e.preventDefault();
+  zone.classList.remove('dragging');
+  if (e.dataTransfer.files.length)
+    handleUpload({ target: { files: e.dataTransfer.files } });
+});
+
+/* ── Error panel ───────────────────────────────────────────────────────────── */
+function addError(msg) {
+  state.errors.push(msg);
+  const list        = document.getElementById('error-list');
+  const placeholder = list.querySelector('.no-data');
+  if (placeholder) placeholder.remove();
+
+  const item = document.createElement('div');
+  item.className   = 'err-item';
+  item.textContent = msg;
+  list.appendChild(item);
+  list.scrollTop = list.scrollHeight;
+
+  document.getElementById('error-count-badge').textContent = state.errors.length + ' error(s)';
+}
+
+/* ── Terminal ──────────────────────────────────────────────────────────────── */
+const MAX_LINES = 200;
+
+function appendLog(log) {
+  const terminal = document.getElementById('terminal');
+  const ts       = (log.created_at || '').split(' ')[1] || '--:--:--';
+
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML =
+    `<span class="log-ts">${ts}</span>` +
+    `<span class="log-lvl ${log.level}">${log.level}</span>` +
+    `<span class="log-msg ${log.level}">${esc(log.content)}</span>`;
+
+  terminal.appendChild(line);
+  while (terminal.children.length > MAX_LINES) terminal.removeChild(terminal.firstChild);
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ── Clear all logs ────────────────────────────────────────────────────────── */
+async function clearLogs() {
+  if (!confirm('Clear all stored logs from the database?')) return;
+  await fetch('/api/clear', { method: 'DELETE' });
+
+  state.counts = { INFO: 0, WARNING: 0, ERROR: 0 };
+  state.errors = [];
+
+  document.getElementById('error-list').innerHTML        = '<div class="no-data">No errors detected yet.</div>';
+  document.getElementById('error-count-badge').textContent = '0 errors';
+  document.getElementById('terminal').innerHTML = `<div class="log-line">
+    <span class="log-ts">--:--:--</span>
+    <span class="log-lvl INFO">INFO</span>
+    <span class="log-msg">All logs cleared.</span>
+  </div>`;
+
+  refreshUI();
+}
+
+/* ── Socket.IO ─────────────────────────────────────────────────────────────── */
+const socket = io({ transports: ['websocket', 'polling'] });
+
+socket.on('connect', () => {
+  const dot   = document.getElementById('ws-dot');
+  dot.style.background  = 'var(--ok)';
+  dot.style.boxShadow   = '0 0 8px var(--ok)';
+  document.getElementById('ws-label').textContent = 'Connected';
+  loadStats();
+});
+
+socket.on('disconnect', () => {
+  const dot   = document.getElementById('ws-dot');
+  dot.style.background  = 'var(--error)';
+  dot.style.boxShadow   = '0 0 8px var(--error)';
+  document.getElementById('ws-label').textContent = 'Disconnected';
+});
+
+socket.on('new_log', (log) => {
+  const lvl = log.level || 'INFO';
+  state.counts[lvl] = (state.counts[lvl] || 0) + 1;
+  if (lvl === 'ERROR') addError(log.content);
+  refreshUI();
+  appendLog(log);
+});
+
+socket.on('stream_status', (d) => {
+  const live = d.status === 'started';
+  state.streaming = live;
+  document.getElementById('stream-badge').className   = 'stream-badge ' + (live ? 'live' : 'offline');
+  document.getElementById('stream-badge').textContent = live ? '● LIVE' : '● OFFLINE';
+  document.getElementById('btn-stream').textContent   = live ? '⏹ Stop' : '▶ Start';
+});
+
+function toggleStream() {
+  socket.emit(state.streaming ? 'stop_stream' : 'start_stream');
+}
+</script>
+</body>
+</html>

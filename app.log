@@ -1,0 +1,45 @@
+2026-03-31 14:01:58,804 [INFO] __main__ — Database initialised.
+2026-03-31 14:01:58,807 [INFO] __main__ — Medical Log Analyzer starting on http://localhost:5000
+2026-03-31 14:01:58,820 [INFO] werkzeug — [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.186.35:5000
+2026-03-31 14:01:58,820 [INFO] werkzeug — [33mPress CTRL+C to quit[0m
+2026-03-31 14:01:58,820 [INFO] werkzeug —  * Restarting with stat
+2026-03-31 14:01:59,606 [INFO] __main__ — Database initialised.
+2026-03-31 14:01:59,608 [INFO] __main__ — Medical Log Analyzer starting on http://localhost:5000
+2026-03-31 14:01:59,610 [WARNING] werkzeug —  * Debugger is active!
+2026-03-31 14:01:59,615 [INFO] werkzeug —  * Debugger PIN: 866-359-990
+2026-03-31 14:02:09,731 [INFO] werkzeug — 192.168.186.35 - - [31/Mar/2026 14:02:09] "GET / HTTP/1.1" 200 -
+2026-03-31 14:02:09,914 [INFO] __main__ — Client connected.
+2026-03-31 14:02:09,968 [INFO] werkzeug — 192.168.186.35 - - [31/Mar/2026 14:02:09] "GET /api/stats HTTP/1.1" 200 -
+2026-03-31 14:02:31,279 [INFO] __main__ — Real-time stream started.
+2026-03-31 14:02:57,934 [INFO] __main__ — Real-time stream stopped.
+2026-03-31 14:03:11,280 [INFO] __main__ — Database initialised.
+2026-03-31 14:03:11,282 [INFO] __main__ — Medical Log Analyzer starting on http://localhost:5000
+2026-03-31 14:03:11,297 [INFO] werkzeug — [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.186.35:5000
+2026-03-31 14:03:11,297 [INFO] werkzeug — [33mPress CTRL+C to quit[0m
+2026-03-31 14:03:11,297 [INFO] werkzeug —  * Restarting with stat
+2026-03-31 14:03:53,853 [INFO] __main__ — Database initialised.
+2026-03-31 14:03:53,854 [INFO] __main__ — Medical Log Analyzer starting on http://localhost:5000
+2026-03-31 14:03:53,870 [INFO] werkzeug — [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.186.35:5000
+2026-03-31 14:03:53,871 [INFO] werkzeug — [33mPress CTRL+C to quit[0m
+2026-03-31 14:03:53,871 [INFO] werkzeug —  * Restarting with stat
+2026-03-31 14:03:54,702 [INFO] __main__ — Database initialised.
+2026-03-31 14:03:54,705 [INFO] __main__ — Medical Log Analyzer starting on http://localhost:5000
+2026-03-31 14:03:54,707 [WARNING] werkzeug —  * Debugger is active!
+2026-03-31 14:03:54,715 [INFO] werkzeug —  * Debugger PIN: 866-359-990
+2026-03-31 14:03:54,754 [INFO] __main__ — Client connected.
+2026-03-31 14:03:54,765 [INFO] werkzeug — 192.168.186.35 - - [31/Mar/2026 14:03:54] "GET /api/stats HTTP/1.1" 200 -
+2026-03-31 14:03:57,515 [INFO] werkzeug — 192.168.186.35 - - [31/Mar/2026 14:03:57] "GET / HTTP/1.1" 200 -
+2026-03-31 14:03:57,664 [INFO] __main__ — Client connected.
+2026-03-31 14:03:57,698 [INFO] werkzeug — 192.168.186.35 - - [31/Mar/2026 14:03:57] "GET /api/stats HTTP/1.1" 200 -
+2026-03-31 14:03:58,687 [INFO] __main__ — Client disconnected.
+2026-03-31 14:04:05,165 [INFO] __main__ — File 'sample_medical.txt' analysed — 15 lines.
+2026-03-31 14:04:05,183 [INFO] werkzeug — 192.168.186.35 - - [31/Mar/2026 14:04:05] "POST /api/upload HTTP/1.1" 200 -
