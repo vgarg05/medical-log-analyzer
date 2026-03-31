@@ -68,7 +68,7 @@ app.config.update(
 db.init_app(app)
 
 # threading async_mode — no eventlet/gevent required, works on Windows
-socketio = SocketIO(app, async_mode="threading", cors_allowed_origins="*")
+socketio = SocketIO(app, async_mode="gevent", cors_allowed_origins="*")
 
 # Ensure upload directory exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
