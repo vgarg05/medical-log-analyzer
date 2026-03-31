@@ -13,6 +13,4 @@ jobs:
     runs-on: ubuntu-latest # Uses a tiny Linux virtual machine
     steps:
       - name: Ping Render App
-        run: |
-          # Use curl to send a 'HEAD' request (faster/lighter than a full GET)
-          curl -I https://medical-log-analyzer.onrender.com
+        run: curl -I https://medical-log-analyzer.onrender.com/ping
