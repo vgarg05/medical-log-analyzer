@@ -34,7 +34,6 @@ medical-log-analyzer/
 ├── requirements.txt              ← Python dependencies (pinned)
 ├── .env                          ← Environment configuration
 ├── CHANGELOG.md                  ← Version history
-├── Dockerfile                    ← Container definition
 ├── .gitignore
 ├── .github/
 │   └── workflows/
