@@ -89,7 +89,10 @@ def allowed_file(filename: str) -> bool:
 # ---------------------------------------------------------------------------
 # HTTP Routes
 # ---------------------------------------------------------------------------
-
+@app.route("/ping")
+def ping():
+    return "pong", 200
+  
 @app.route("/")
 def index():
     """Serve the single-page dashboard."""
