@@ -1,0 +1,18 @@
+name: Render Keep Alive
+
+# This section defines WHEN the action runs
+on:
+  schedule:
+    # Cron syntax: Minute Hour Day Month Weekday
+    # '*/10 * * * *' means "every 10 minutes"
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # This adds a "Run" button in the UI for manual testing
+
+jobs:
+  ping_render:
+    runs-on: ubuntu-latest # Uses a tiny Linux virtual machine
+    steps:
+      - name: Ping Render App
+        run: |
+          # Use curl to send a 'HEAD' request (faster/lighter than a full GET)
+          curl -I https://medical-log-analyzer.onrender.com
