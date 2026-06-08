@@ -125,8 +125,3 @@ pytest tests/ -v
 | Upload returns 415 | Only `.txt` files accepted |
 | WebSocket fails | App auto-falls-back to HTTP long-polling |
 
----
-
-## 📄 License
-
-MIT — free for personal and commercial use.
